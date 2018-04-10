@@ -1,0 +1,44 @@
+language: android
+sudo: false
+dist: trusty
+jdk: oraclejdk8
+android:
+  components:
+  - tools
+  - platform-tools
+  - build-tools-27.0.3
+  - android-27
+before_install:
+- openssl aes-256-cbc -K $encrypted_75a6c12b2fda_key -iv $encrypted_75a6c12b2fda_iv
+  -in matlink-keystore.jks.enc -out matlink-keystore.jks -d
+- yes | sdkmanager "platforms;android-27"
+install:
+- git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*
+- git fetch --tags
+script:
+- "./gradlew build --quiet"
+before_deploy:
+- export VERSION_CODE=`echo $TRAVIS_TAG | cut -d"." -f2`
+- export APK_NAME=fr.matlink.deviceproperties_$VERSION_CODE.apk
+- cd app/build/outputs/apk/release/
+- jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore $TRAVIS_BUILD_DIR/matlink-keystore.jks
+  -storepass $SECURE_STOREPASS -keypass $SECURE_KEYPASS app-release-unsigned.apk matlink
+- jarsigner -verify app-release-unsigned.apk
+- "$ANDROID_HOME/build-tools/27.0.3/zipalign -v 4 app-release-unsigned.apk $APK_NAME"
+- cp $APK_NAME $TRAVIS_BUILD_DIR
+notifications:
+  email: false
+env:
+  global:
+  - secure: iwwFty0Edpdsxjfl0aeJ2hJ/dH5XTXZ5NTcD1fU1Td8MJId5LhRFAzUc4Zof2B7w3TVU5XzFtSyGnaOiJQ/cBIY1kXs5dDWLMapvfs3mauofcj+vi1ebrwfRZaeQfqd1m+HzfZ7kpHdyump9O5Vg5cGzl8IjLGMnTCvEd7kvzlIRMuvaqXupPNUeUNLhQaZ8OeesdS49RR8tPy+h3+0o63hhqlXZHKDPcYpl2A7q3ywsMqL+e5PNI6qX1PfFrPy+OTWkE+TVIltfHLTWKPy8lEUF0SNxgRvAHNpmtvi5Ft/0MJOZ/vojEzigpqS1UoMFgI63g1Iphgs+rBeiBXETOtR19gwWmQRvPkJJZRNzWnP2100r4kTNPlxHIC/CLCUZWxUHUiQAASh3GB78EH6AnyPay2Vad9mEEyR6Cjc3fABIHQTEXYGeKaPAm/oX+qga17Xt22K29WoQL+Q9ZPygGnJn6OWGcbO7gK2IeLeQ66OzB1XjayuxBCpN2SdBzuuFC3yl5d4KyAQlaHh7kYhzzuOKvPkJJmpGE54m2nX1dAd0x+Py1PdLeZZ60Yvt64yh57qWMN2Eljx2AN1A6pf4m5ZpCbt6B4i81yx4zUhvlrCyRrBexR/9c+kZXmDrLLBPhrihmlo28u7wPwNCIQ1o7hG0IvGE3z54CNAdv2Xf8+I=
+  - secure: LlIbCcWk/UeH0qJsaoDOkqo6oeh+Rp+CXOT3qNYb/r2O//phnkLm/NMREVVlcBteri/rWKImc4a1noOu4GntYEVFL7Sw7yzq4jFciXY0CVDiEkMFfQmqsxEYXAzfmafoTOYxmxAkOicSQwd2XY3pHEUhvKk+aHLLR+btZnYl46vADReyyVvCcJA/G8Lwqb/Iz8IUDB/tOLay/57fhdcJp7Vhz0t26vPEOm/FQ2n/S/W+fChFpN+cZUmJEQu/ZO72VA8KQ4R84a2rgK/SgKgttj+UosGxuIbvbHcLODOxxv30JORvbQfZ4nr4+XHdcIigFTUnliMnDPCqlphgsboh5sywa2K2VHG9VkCQ1Ghew0+HRd5KVhlIJwa0tPL8C345YeOiC4FAzWkerfDkqs09UIekEA3ovACKkvTJtkKLJKZsa6R18/a1CjWQDrvmPIFUXDmy3bPMz/Y9QRemz5SnGGHYlC3jrH++3d34dFkgNx6vo4+sV3/Yq/7RxZnNDYaNp9plxlKBUwd1oY7SWc8agNJb/2c8K5Sfvy+Izc81ztR3o2ybc6gh2hB/28dTMVRbsazBFZNOd1+1NluxngdUmmbM6V7Mx8vHZu0tnoRPE/zVzr4aVw//KYPtxV6TJk3SyxhTGaVRWy9a5Ges1tcHCDfmOcURlb8rFYsiXMnbXRo=
+deploy:
+  provider: releases
+  api_key:
+    secure: MComBP4AdAPPa0y5szlJqnhMU7+n6TFpwFMEIIEzHx8WkXh5W4CEmy2iVq7OKmXVQ7flYs7G/JDB05VGUMTuzrOyMuWEIHMh8o9b5TuYzrO6xDC9vjPmlIqFylYRvlO+o6u6HxEDqx/SxoSoCzGrcaW7ADm9Of4/fwdZ9TWD2/Bc8Olk8uIcbAGa4SVD+Go3hyNbRsUeqGMkm82EgLIynAzLUz8ApyJnvFaFCKUe8Y/hY1u+uqlnXrU8eh2LAAhmnNhL+YWLZVN04X4jrxIg209dAFZ5uPs0lJlC/02a78k2CdFcHHzArBditx0axs+SYmQtWUFpBY6xyzjHgRzLMck3qNWTKOYPNk0URemZTdBMouLWyZdjLyxihCZ2MogseWV/pHOzcseH11blm7QBqDGkGHdUQHWiBoWER+PrwTQJ9gs5WPdHXDYxzo3eJbHmNKdY6PBGAU0LgdWl9BVXogobSPQf+jDkHpXl48HcvOr76QqI2mNFVtoRuCiVp7PC5NaYysDt30rob4fD1E65ITnrM+mQTkgMOfdVkqbGomqRj3I+uCu0kgRbUTVTzMKQQrO7yyZvebvzZAki4Iy2mhr7b6RurgaX+OmFzQYN13L/93dXkPnMBLiYVUgDCTZ+LBP3gB4B2IKFT81o4zTV71n/Gwy1cX88D8KEn14hkQA=
+  file: "$APK_NAME"
+  skip_cleanup: true
+  on:
+    tags: true
+    all_branches: true
+    repo: matlink/deviceproperties
